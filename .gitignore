@@ -1,0 +1,7 @@
+/target
+**/*.rs.bk
+*.pdb
+*.uf2
+*.elf
+*.bin
+*.hex

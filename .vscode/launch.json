@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "Debug RP2350",
+            "cwd": "${workspaceFolder}/src/firmware",
+            "chip": "RP2350",
+            "flashingConfig": {
+                "flashingEnabled": true
+            },
+            "coreConfigs": [
+                {
+                    "coreIndex": 0,
+                    "programBinary": "target/thumbv8m.main-none-eabihf/debug/hid-firmware"
+                }
+            ]
+        }
+    ]
+}
