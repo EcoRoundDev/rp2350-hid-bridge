@@ -1,0 +1,66 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetch all history for git SHA and tags
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libusb-1.0-0-dev
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      # Automatically reads rust-toolchain.toml to install nightly and thumbv8m.main-none-eabihf target
+
+    - name: Install elf2uf2-rs
+      run: |
+        cargo install elf2uf2-rs --locked
+
+    - name: Build firmware
+      run: |
+        cargo build --release
+
+    - name: Get version and commit hash
+      id: meta
+      run: |
+        # Extract version from Cargo.toml
+        VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d '"' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Get short commit SHA
+        SHA_SHORT=$(git rev-parse --short HEAD)
+        echo "sha=$SHA_SHORT" >> $GITHUB_OUTPUT
+
+    - name: Convert ELF to UF2 and Rename
+      run: |
+        VERSION="${{ steps.meta.outputs.version }}"
+        SHA="${{ steps.meta.outputs.sha }}"
+        
+        # Convert ELF to UF2
+        elf2uf2-rs target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
+        
+        # Create named copies with version and git sha
+        cp target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA.elf
+        cp target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge.uf2 target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA.uf2
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rp2350-hid-bridge-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.sha }}
+        path: |
+          target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.sha }}.elf
+          target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.sha }}.uf2

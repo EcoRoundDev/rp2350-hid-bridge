@@ -61,7 +61,7 @@ async fn led_task(mut led: Output<'static>) {
 
 #[embassy_executor::task]
 async fn uart_reader_task(mut rx: BufferedUartRx, mut tx: BufferedUartTx) {
-    let _ = tx.write_all(b"[rp2350-hid-bridge] booted\r\n").await;
+    let _ = tx.write_all(concat!("[rp2350-hid-bridge] booted v", env!("CARGO_PKG_VERSION"), "\r\n").as_bytes()).await;
     let mut buf: Vec<u8, 256> = Vec::new();
     let mut byte = [0u8; 1];
     loop {
