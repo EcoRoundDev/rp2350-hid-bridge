@@ -50,8 +50,8 @@ jobs:
         VERSION="${{ steps.meta.outputs.version }}"
         SHA="${{ steps.meta.outputs.sha }}"
         
-        # Convert ELF to UF2
-        elf2uf2-rs target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
+        # Convert ELF to UF2 specifying RP2350 ARM Secure family
+        elf2uf2-rs -f rp2350-arm-s target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
         
         # Create named copies with version and git sha
         cp target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA.elf
