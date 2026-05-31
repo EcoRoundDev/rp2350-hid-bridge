@@ -24,7 +24,10 @@ jobs:
 
     - name: Install Rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
-      # Automatically reads rust-toolchain.toml to install nightly and thumbv8m.main-none-eabihf target
+      with:
+        # Don't override RUSTFLAGS — .cargo/config.toml defines critical linker script flags
+        # (-Tlink.x, -Tdefmt.x) that must not be replaced
+        rustflags: ""
 
     - name: Install elf2uf2-rs
       run: |
