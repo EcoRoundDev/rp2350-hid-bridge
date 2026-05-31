@@ -28,7 +28,7 @@ jobs:
 
     - name: Install elf2uf2-rs
       run: |
-        cargo install elf2uf2-rs --locked
+        cargo install --git https://github.com/JoNil/elf2uf2-rs
 
     - name: Build firmware
       run: |
@@ -49,13 +49,14 @@ jobs:
       run: |
         VERSION="${{ steps.meta.outputs.version }}"
         SHA="${{ steps.meta.outputs.sha }}"
+        ELF=target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
+        OUT_BASE=target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA
         
-        # Convert ELF to UF2 specifying RP2350 ARM Secure family
-        elf2uf2-rs -f rp2350-arm-s target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
+        # Copy ELF with versioned name
+        cp $ELF $OUT_BASE.elf
         
-        # Create named copies with version and git sha
-        cp target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA.elf
-        cp target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge.uf2 target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA.uf2
+        # Convert ELF to UF2 using new subcommand syntax, output directly with versioned name
+        elf2uf2-rs convert -f rp2350-arm-s $ELF $OUT_BASE.uf2
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
