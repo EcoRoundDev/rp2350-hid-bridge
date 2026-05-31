@@ -24,7 +24,7 @@ Bare-metal `#![no_std]` firmware for the RP2350A (Cortex-M33) on a Waveshare RP2
 - `defmt` + `defmt-rtt` — structured logging over RTT (debug probe)
 - `heapless` — fixed-capacity collections (no heap allocator)
 
-**Memory layout:** Defined in `memory.x` — BOOT2 (256B), FLASH (4MB), RAM (520K). Copied to OUT_DIR by `build.rs` for the linker.
+**Memory layout:** Defined in `memory.x` — FLASH (16MB), RAM (512K), SRAM8 (4K), SRAM9 (4K). Copied to OUT_DIR by `build.rs` for the linker.
 
 ## Constraints
 

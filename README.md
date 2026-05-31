@@ -104,16 +104,18 @@ All commands are JSON, one per line (terminated with `\n`). Responses are echoed
 | `[err] busy` | Command queue full, try again later |
 | `[err] <raw data>` | JSON parse failed, echoes raw input |
 | `[err] overflow` | UART buffer overflow (>256 bytes) |
-| `[rp2350-hid-bridge] booted` | Firmware started |
+| `[rp2350-hid-bridge] booted v<version>` | Firmware started (includes version from Cargo.toml) |
 
 ## Project Structure
 
 ```
 src/
-  main.rs          — entry point, task spawning, command parsing
-memory.x           — RP2350 memory layout
-build.rs           — linker script setup
-print-position.py  — helper to read cursor position for click_at coords
+  main.rs            — entry point, task spawning, command parsing
+Cargo.toml           — package metadata and dependencies
+memory.x             — RP2350 memory layout (FLASH 16MB, RAM 512K)
+build.rs             — linker script setup
+rust-toolchain.toml  — pinned nightly toolchain + target
+CLAUDE.md            — AI coding assistant context
 ```
 
 ## Notes
