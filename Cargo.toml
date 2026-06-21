@@ -1,11 +1,22 @@
 [package]
 name = "rp2350-hid-bridge"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "UART to USB HID bridge firmware for Waveshare RP2350-Plus-16MB-M"
 license = "MIT"
 
+[[bin]]
+name = "rp2350-hid-bridge"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
+
 [dependencies]
+serde = { version = "1", default-features = false, features = ["derive"] }
+serde-json-core = "0.6"
+
+[target.'cfg(target_arch = "arm")'.dependencies]
 embassy-executor = { git = "https://github.com/embassy-rs/embassy", branch = "main", features = ["platform-cortex-m", "executor-thread"] }
 embassy-rp = { git = "https://github.com/embassy-rs/embassy", branch = "main", features = ["rp235xa", "time-driver", "critical-section-impl"] }
 embassy-usb = { git = "https://github.com/embassy-rs/embassy", branch = "main" }
@@ -14,8 +25,6 @@ embassy-sync = { git = "https://github.com/embassy-rs/embassy", branch = "main" 
 embassy-futures = { git = "https://github.com/embassy-rs/embassy", branch = "main" }
 
 usbd-hid = "0.10.0"
-serde = { version = "1", default-features = false, features = ["derive"] }
-serde-json-core = "0.6"
 heapless = "0.9.3"
 
 cortex-m = { version = "0.7", features = ["inline-asm"] }

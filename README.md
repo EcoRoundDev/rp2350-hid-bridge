@@ -2,7 +2,7 @@
 
 UART to USB HID bridge firmware for **Waveshare RP2350-Plus-16MB-M**.
 
-Receives JSON commands over UART, translates them into USB HID keyboard/mouse reports. Built with Rust + Embassy async framework.
+Receives JSON commands over UART and translates them into USB HID keyboard/mouse reports. The USB device now enumerates with a Logitech G102 LIGHTSYNC identity and includes a vendor-defined HID report interface shaped for Logitech HID++ short/long reports.
 
 ## Hardware
 
@@ -16,12 +16,12 @@ Receives JSON commands over UART, translates them into USB HID keyboard/mouse re
 
 ## Wiring
 
-```
+```text
 RP2350-Plus          CP210x USB-UART
 -----------          ---------------
-GP0 (TX)  ────────── RX
-GP1 (RX)  ────────── TX
-GND       ────────── GND
+GP0 (TX)  ---------- RX
+GP1 (RX)  ---------- TX
+GND       ---------- GND
 ```
 
 ## Build
@@ -106,22 +106,59 @@ All commands are JSON, one per line (terminated with `\n`). Responses are echoed
 | `[err] overflow` | UART buffer overflow (>256 bytes) |
 | `[rp2350-hid-bridge] booted v<version>` | Firmware started (includes version from Cargo.toml) |
 
+## GUI Test Tool
+
+A small host-side Tkinter GUI is included for manual firmware testing over the UART bridge.
+
+```powershell
+pip install -r requirements-dev.txt
+python tools\hid_bridge_gui.py
+```
+
+1. Connect the USB-UART adapter to GP0/GP1/GND as shown above.
+2. Open the firmware USB HID connection to the target computer.
+3. Select the UART COM port in the GUI, keep baud at `115200`, and click `Open`.
+4. Use the mouse buttons, keyboard buttons, shortcut buttons, text box, or custom JSON box to send commands.
+
+The Keyboard area also includes modifier/system shortcuts: `Alt`, `Win`, `Alt+Tab`, `Alt+F4`, `Win+D`, `Win+R`, and `Win+E`, plus `Alt Down` / `Win Down` for hold-and-release testing.
+
+The text box sends one `keypress` command per character using the USB HID keyboard usage table and a US keyboard layout. ASCII letters, digits, punctuation, space, tab, backspace, and Enter are supported. Unicode text such as Chinese characters cannot be sent as raw HID keycodes with this firmware protocol; use the host OS input method or send explicit HID keycodes instead.
+
+The default text-send delay is `60ms`, which matches the firmware's `keypress` hold timing and helps avoid filling the 16-command queue.
+
 ## Project Structure
 
-```
+```text
 src/
-  main.rs            — entry point, task spawning, command parsing
-Cargo.toml           — package metadata and dependencies
-memory.x             — RP2350 memory layout (FLASH 16MB, RAM 512K)
-build.rs             — linker script setup
-rust-toolchain.toml  — pinned nightly toolchain + target
-CLAUDE.md            — AI coding assistant context
+  main.rs       firmware entry point, USB/UART setup, task spawning
+  tasks.rs      Embassy tasks for LED, UART reader, HID writer, USB device, HID++ drain
+  command.rs    host-testable JSON command parsing and HidCommand model
+  usb_desc.rs   Logitech G102 USB identity and HID++-shaped report descriptor constants
+  hidpp.rs      firmware-side HID request handler for the vendor-defined HID interface
+  lib.rs        no_std library surface for testable modules
+Cargo.toml      package metadata, host-testable deps, ARM-only firmware deps
+memory.x        RP2350 memory layout (FLASH 16MB, RAM 512K)
+build.rs        linker script setup
+rust-toolchain.toml pinned nightly toolchain + target
+CLAUDE.md       AI coding assistant context
 ```
 
-## Notes
+## Logitech/G Hub Notes
 
-- USB VID/PID: `0x2E8A:0xBA01` (Raspberry Pi VID, custom PID)
-- HID write timeout: 200ms (prevents blocking if USB not ready)
-- CMD channel capacity: 16 commands (returns `[err] busy` when full)
-- LED: blinks every 1s (heartbeat), rapid flash on command received
-- Coordinates for `move_to`/`click_at` are from the virtual desktop top-left corner
+- USB VID/PID: `0x046D:0xC092` (Logitech / G102 LIGHTSYNC-style identity).
+- USB strings: manufacturer `Logitech`, product `G102 LIGHTSYNC Gaming Mouse`.
+- The firmware exposes standard keyboard and mouse HID interfaces plus a vendor-defined HID report descriptor with report IDs `0x10` and `0x11`.
+- This is not a complete Logitech HID++ firmware implementation. G Hub may still require model-specific HID++ responses for DPI, lighting, profile, or feature queries before showing the device as fully connected and configurable.
+- HID write timeout: 200ms (prevents blocking if USB is not ready).
+- CMD channel capacity: 16 commands (returns `[err] busy` when full).
+- LED: blinks every 1s (heartbeat), rapid flash on command received.
+- Coordinates for `move_to`/`click_at` are from the virtual desktop top-left corner.
+
+## Tests
+
+```bash
+cargo test --target x86_64-pc-windows-msvc --lib
+cargo check
+```
+
+The library tests run on the host target and cover command parsing plus the G102/HID++ descriptor constants. The default `cargo check` uses `.cargo/config.toml` and checks the RP2350 firmware target.

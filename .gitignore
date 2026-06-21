@@ -1,4 +1,7 @@
 /target
+/.claude
+/.codex
+**/__pycache__/*
 **/*.rs.bk
 *.pdb
 *.uf2
