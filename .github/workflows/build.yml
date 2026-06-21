@@ -2,10 +2,15 @@ name: Build Firmware
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
+    tags:
+      - "v*.*.*"
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -15,7 +20,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Fetch all history for git SHA and tags
+        fetch-depth: 0
 
     - name: Install system dependencies
       run: |
@@ -25,8 +30,7 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        # Don't override RUSTFLAGS — .cargo/config.toml defines critical linker script flags
-        # (-Tlink.x, -Tdefmt.x) that must not be replaced
+        # Keep .cargo/config.toml linker flags (-Tlink.x, -Tdefmt.x).
         rustflags: ""
 
     - name: Install elf2uf2-rs
@@ -40,11 +44,9 @@ jobs:
     - name: Get version and commit hash
       id: meta
       run: |
-        # Extract version from Cargo.toml
         VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d '"' -f2)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-        # Get short commit SHA
+
         SHA_SHORT=$(git rev-parse --short HEAD)
         echo "sha=$SHA_SHORT" >> $GITHUB_OUTPUT
 
@@ -54,11 +56,8 @@ jobs:
         SHA="${{ steps.meta.outputs.sha }}"
         ELF=target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge
         OUT_BASE=target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA
-        
-        # Copy ELF with versioned name
+
         cp $ELF $OUT_BASE.elf
-        
-        # Convert ELF to UF2 using new subcommand syntax, output directly with versioned name
         elf2uf2-rs convert -f rp2350-arm-s $ELF $OUT_BASE.uf2
 
     - name: Upload Build Artifacts
@@ -68,3 +67,31 @@ jobs:
         path: |
           target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.sha }}.elf
           target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.sha }}.uf2
+
+    - name: Publish GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        VERSION="${{ steps.meta.outputs.version }}"
+        SHA="${{ steps.meta.outputs.sha }}"
+        TAG="${{ github.ref_name }}"
+        OUT_BASE=target/thumbv8m.main-none-eabihf/release/rp2350-hid-bridge-v$VERSION-$SHA
+
+        if [ "$TAG" != "v$VERSION" ]; then
+          echo "::error::Tag $TAG does not match Cargo.toml version v$VERSION"
+          exit 1
+        fi
+
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          gh release upload "$TAG" \
+            "$OUT_BASE.elf" \
+            "$OUT_BASE.uf2" \
+            --clobber
+        else
+          gh release create "$TAG" \
+            "$OUT_BASE.elf" \
+            "$OUT_BASE.uf2" \
+            --title "rp2350-hid-bridge $TAG" \
+            --notes "Firmware build for $TAG. Download the .uf2 file to flash the board."
+        fi
